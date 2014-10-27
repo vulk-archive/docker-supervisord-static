@@ -1,0 +1,154 @@
+* dependencies
+manu
+setuptools (latest) from http://pypi.python.org/pypi/setuptools.
+meld3 (latest) from http://www.plope.com/software/meld3/.
+elementtree (latest) from http://effbot.org/downloads#elementtree.
+
+I think I hit a blocker in my attempt to make a statically linked supervisord:
+
+** While compiling we note some functions need/require shared glibc access...
+
+The aren't errors at the point, just warnings:
+
+#+begin_src gcc
+
+gcc -pthread -Wl,-no-export-dynamic -static-libgcc -static  -I/usr/include  -o python \
+		Modules/python.o \
+		libpython2.7.a -lpthread -ldl  -lutil -lffi  -lreadline -ltermcap    -lssl -lcrypto  -lssl -lcrypto  -lbz2          -L/usr/local/lib -lz   -ldl        -lm  
+
+libpython2.7.a(callproc.o): In function `py_dl_open':
+/usr/src/python/./Modules/_ctypes/callproc.c:1433: warning: Using 'dlopen' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+
+libpython2.7.a(posixmodule.o): In function `posix_tmpnam':
+/usr/src/python/./Modules/posixmodule.c:7575: warning: the use of `tmpnam_r' is dangerous, better use `mkstemp'
+libpython2.7.a(posixmodule.o): In function `posix_tempnam':
+/usr/src/python/./Modules/posixmodule.c:7522: warning: the use of `tempnam' is dangerous, better use `mkstemp'
+libpython2.7.a(posixmodule.o): In function `posix_initgroups':
+/usr/src/python/./Modules/posixmodule.c:4161: warning: Using 'initgroups' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+
+libpython2.7.a(grpmodule.o): In function `grp_getgrall':
+/usr/src/python/./Modules/grpmodule.c:144: warning: Using 'getgrent' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(grpmodule.o): In function `grp_getgrgid':
+/usr/src/python/./Modules/grpmodule.c:101: warning: Using 'getgrgid' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(grpmodule.o): In function `grp_getgrnam':
+/usr/src/python/./Modules/grpmodule.c:125: warning: Using 'getgrnam' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(grpmodule.o): In function `grp_getgrall':
+/usr/src/python/./Modules/grpmodule.c:143: warning: Using 'setgrent' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/usr/src/python/./Modules/grpmodule.c:154: warning: Using 'endgrent' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+
+libpython2.7.a(pwdmodule.o): In function `pwd_getpwall':
+/usr/src/python/./Modules/pwdmodule.c:165: warning: Using 'getpwent' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(pwdmodule.o): In function `pwd_getpwnam':
+/usr/src/python/./Modules/pwdmodule.c:139: warning: Using 'getpwnam' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(pwdmodule.o): In function `pwd_getpwuid':
+/usr/src/python/./Modules/pwdmodule.c:114: warning: Using 'getpwuid' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(pwdmodule.o): In function `pwd_getpwall':
+/usr/src/python/./Modules/pwdmodule.c:164: warning: Using 'setpwent' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+/usr/src/python/./Modules/pwdmodule.c:176: warning: Using 'endpwent' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+
+libpython2.7.a(socketmodule.o): In function `socket_getaddrinfo':
+/usr/src/python/./Modules/socketmodule.c:4201: warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(socketmodule.o): In function `socket_gethostbyaddr':
+/usr/src/python/./Modules/socketmodule.c:3559: warning: Using 'gethostbyaddr_r' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(socketmodule.o): In function `socket_gethostbyname_ex':
+/usr/src/python/./Modules/socketmodule.c:3462: warning: Using 'gethostbyname_r' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(socketmodule.o): In function `socket_getprotobyname':
+/usr/src/python/./Modules/socketmodule.c:3675: warning: Using 'getprotobyname' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(socketmodule.o): In function `socket_getservbyname':
+/usr/src/python/./Modules/socketmodule.c:3604: warning: Using 'getservbyname' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+libpython2.7.a(socketmodule.o): In function `socket_getservbyport':
+/usr/src/python/./Modules/socketmodule.c:3641: warning: Using 'getservbyport' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+./python -E -S -m sysconfig --generate-posix-vars
+#+end_src
+
+*** It reflects in applications like this:
+
+#+begin_example
+# using the statically built binary
+root@cc47ced47c10:/usr/src/python# strace easy_install -vvv supervisor 
+
+...
+
+mkdir("/tmp/easy_install-WvdeHM", 0700) = 0
+stat("supervisor", 0x7fff58021590)      = -1 ENOENT (No such file or directory)
+fstat(1, {st_mode=S_IFCHR|0600, st_rdev=makedev(136, 14), ...}) = 0
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f79f3f5e000
+write(1, "Searching for supervisor\n", 25Searching for supervisor
+) = 25
+write(1, "Reading https://pypi.python.org/"..., 51Reading https://pypi.python.org/simple/supervisor/
+) = 51
+stat("/root/.pypirc", 0x7fff580202a0)   = -1 ENOENT (No such file or directory)
+socket(PF_LOCAL, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0) = 3
+connect(3, {sa_family=AF_LOCAL, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+close(3)                                = 0
+socket(PF_LOCAL, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0) = 3
+connect(3, {sa_family=AF_LOCAL, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+close(3)                                = 0
+open("/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=497, ...}) = 0
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f79f3f5d000
+read(3, "# /etc/nsswitch.conf\n#\n# Example"..., 4096) = 497
+read(3, "", 4096)                       = 0
+close(3)                                = 0
+munmap(0x7f79f3f5d000, 4096)            = 0
+open("/etc/host.conf", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=9, ...}) = 0
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f79f3f5d000
+read(3, "multi on\n", 4096)             = 9
+read(3, "", 4096)                       = 0
+close(3)                                = 0
+munmap(0x7f79f3f5d000, 4096)            = 0
+futex(0xd3ab94, FUTEX_WAKE_PRIVATE, 2147483647) = 0
+open("/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=330, ...}) = 0
+mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f79f3f5d000
+read(3, "# This file is managed by system"..., 4096) = 330
+read(3, "", 4096)                       = 0
+close(3)                                = 0
+munmap(0x7f79f3f5d000, 4096)            = 0
+uname({sys="Linux", node="cc47ced47c10", ...}) = 0
+open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=32273, ...}) = 0
+mmap(NULL, 32273, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f79f3f56000
+close(3)                                = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+munmap(0x7f79f3f56000, 32273)           = 0
+open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=32273, ...}) = 0
+mmap(NULL, 32273, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f79f3f56000
+close(3)                                = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+munmap(0x7f79f3f56000, 32273)           = 0
+write(2, "Download error on https://pypi.p"..., 134Download error on https://pypi.python.org/simple/supervisor/: [Errno -2] Name or service not known -- Some packages may not be found!
+) = 134
+write(2, "Couldn't find index page for 'su"..., 62Couldn't find index page for 'supervisor' (maybe misspelled?)
+#+end_example
+** Setuptools and friends really don't like it
+
+module.__path__ is a str, and it has no append
+
+    if subpath is not None:
+        path = module.__path__
+        #path.append(subpath)                                                                                                                                  
+        loader.load_module(packageName)
+
+
+# ./main
+Traceback (most recent call last):
+  File "main.py", line 3, in <module>
+    from supervisor.supervisord import main
+  File "/usr/local/lib/python2.7/site-packages/supervisor-3.1.2-py2.7.egg/supervisor/__init__.py", line 1, in <module>
+    __import__('pkg_resources').declare_namespace(__name__)
+  File "/usr/local/lib/python2.7/site-packages/pkg_resources.py", line 2879, in <module>
+    add_activation_listener(lambda dist: dist.activate())
+  File "/usr/local/lib/python2.7/site-packages/pkg_resources.py", line 741, in subscribe
+    callback(dist)
+  File "/usr/local/lib/python2.7/site-packages/pkg_resources.py", line 2879, in <lambda>
+    add_activation_listener(lambda dist: dist.activate())
+  File "/usr/local/lib/python2.7/site-packages/pkg_resources.py", line 2408, in activate
+    declare_namespace(pkg)
+  File "/usr/local/lib/python2.7/site-packages/pkg_resources.py", line 1990, in declare_namespace
+    _handle_ns(packageName, path_item)
+  File "/usr/local/lib/python2.7/site-packages/pkg_resources.py", line 1956, in _handle_ns
+    #eepath.append(subpath)
+AttributeError: 'str' object has no attribute 'append'

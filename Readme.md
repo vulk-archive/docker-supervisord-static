@@ -1,25 +1,21 @@
-# Supervisord
+# A standalone supervisord
 
-* this is primarily here to create a static standalone supervisord
+A supervisor is an important process... it just felt strange to deploy ALL of python.
+So I took some time to create a static binary...
 
-## This image is'nt means to run directly, just use it to pull out the static supervisord binaryy
+# For our minimal example, we'll just pull in the asm version of 'true' from:
 
-```docker run vulk/supervisord-static cat /supervisord > supervisord ; chmod +x supervisord```
+https://github.com/tianon/dockerfiles/tree/master/true
 
 ```
-$ ./supervisord -v
-3.1.2-static
+$ docker run vulk/supervisord-static cat /supervisord > supervisord ; chmod +x supervisord 
+$ file supervisord
+supervisord: ELF 64-bit LSB executable, x86-64, version 1 (GNU/Linux), statically linked, for GNU/Linux 2.6.32, BuildID[sha1]=c7881ee635ceeea7097ffc3d5aadc8d3964283ef, not stripped
+$ strip supervisord
+$ ls -lah supervisord 
+-rwxr-xr-x 1 hh hh 11M Oct 27 13:44 supervisord
 
-$ file ./supervisord
-supervisord: ELF 64-bit LSB executable, x86-64, version 1 (GNU/Linux), statically linked, for GNU/Linux 2.6.32, BuildID[sha1]=db62ba62cf981dcb897221e076c6a69bd5be7438, not stripped
-
-$ ldd ./supervisord
-	not a dynamic executable
-
-$  ls -lah ./supervisord
--rwxr-xr-x 1 hh hh 19M Oct 27 14:27 supervisord
 ```
-
 
 This binary will allow us to run in 'from scratch' container builds:
 
